@@ -373,6 +373,7 @@
                         <thead>
                             <tr>
                                 <th>Élève</th>
+                                <th>Groupe</th>
                                 <th>Statut</th>
                                 <th>Actions</th>
                             </tr>
@@ -442,6 +443,7 @@
                         <ul style="font-size: 0.875rem; margin-left: 1.5rem;">
                             <li>Colonne A : ID (nombre)</li>
                             <li>Colonne B : Nom (texte)</li>
+                            <li>Colonne C : Groupe (texte, optionnel)</li>
                         </ul>
                     </div>
                 </div>
@@ -458,6 +460,7 @@
                         <thead>
                             <tr>
                                 <th>Nom</th>
+                                <th>Groupe</th>
                                 <th>Présences</th>
                                 <th>Absences</th>
                                 <th>Actions</th>
@@ -477,6 +480,10 @@
             <div class="form-group">
                 <label class="form-label">Nom de l'élève</label>
                 <input type="text" class="input" id="studentName" placeholder="Entrez le nom">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Groupe</label>
+                <input type="text" class="input" id="studentGroup" placeholder="Ex: Groupe A">
             </div>
             <div class="modal-footer">
                 <button class="button button-outline" onclick="closeModal()">Annuler</button>
@@ -503,9 +510,9 @@
     <script>
         // Data
         let students = [
-            { id: 1, name: "Ahmed Benali", attendance: [], observations: [] },
-            { id: 2, name: "Fatima Zahra", attendance: [], observations: [] },
-            { id: 3, name: "Mohammed Alami", attendance: [], observations: [] }
+            { id: 1, name: "Ahmed Benali", group: "Groupe A", attendance: [], observations: [] },
+            { id: 2, name: "Fatima Zahra", group: "Groupe B", attendance: [], observations: [] },
+            { id: 3, name: "Mohammed Alami", group: "Groupe A", attendance: [], observations: [] }
         ];
 
         let currentMonth = new Date().getMonth();
@@ -581,6 +588,7 @@
                 return `
                     <tr>
                         <td>${student.name}</td>
+                        <td><span class="badge badge-secondary">${student.group || 'Non assigné'}</span></td>
                         <td>
                             ${isPresent === true ? '<span class="badge badge-success">Présent</span>' : 
                               isPresent === false ? '<span class="badge badge-destructive">Absent</span>' : 
@@ -823,6 +831,7 @@
                 return `
                     <tr>
                         <td>${student.name}</td>
+                        <td><span class="badge badge-secondary">${student.group || 'Non assigné'}</span></td>
                         <td>${present}</td>
                         <td>${absent}</td>
                         <td>
@@ -838,6 +847,7 @@
             editingStudentId = null;
             document.getElementById('modalTitle').textContent = 'Ajouter un élève';
             document.getElementById('studentName').value = '';
+            document.getElementById('studentGroup').value = '';
             document.getElementById('studentModal').classList.add('active');
         }
 
@@ -846,11 +856,13 @@
             const student = students.find(s => s.id === id);
             document.getElementById('modalTitle').textContent = 'Modifier l\'élève';
             document.getElementById('studentName').value = student.name;
+            document.getElementById('studentGroup').value = student.group || '';
             document.getElementById('studentModal').classList.add('active');
         }
 
         function saveStudent() {
             const name = document.getElementById('studentName').value.trim();
+            const group = document.getElementById('studentGroup').value.trim();
             if (!name) {
                 alert('Veuillez entrer un nom');
                 return;
@@ -859,9 +871,10 @@
             if (editingStudentId) {
                 const student = students.find(s => s.id === editingStudentId);
                 student.name = name;
+                student.group = group;
             } else {
                 const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-                students.push({ id: newId, name, attendance: [], observations: [] });
+                students.push({ id: newId, name, group, attendance: [], observations: [] });
             }
             
             saveToLocalStorage();
@@ -917,11 +930,12 @@
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: ['id', 'name'] });
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: ['id', 'name', 'group'] });
                 
                 students = jsonData.slice(1).map(row => ({
                     id: Number(row.id) || Date.now() + Math.random(),
                     name: row.name || 'Sans nom',
+                    group: row.group || '',
                     attendance: [],
                     observations: []
                 }));
@@ -934,7 +948,7 @@
         }
 
         function exportStudents() {
-            const data = students.map(s => ({ ID: s.id, Nom: s.name }));
+            const data = students.map(s => ({ ID: s.id, Nom: s.name, Groupe: s.group || '' }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Élèves');
@@ -943,8 +957,8 @@
 
         function downloadTemplate() {
             const data = [
-                { ID: 1, Nom: 'Exemple Élève 1' },
-                { ID: 2, Nom: 'Exemple Élève 2' }
+                { ID: 1, Nom: 'Exemple Élève 1', Groupe: 'Groupe A' },
+                { ID: 2, Nom: 'Exemple Élève 2', Groupe: 'Groupe B' }
             ];
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
