@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Présences - Suivi des Élèves</title>
+    <meta name="description" content="Application de gestion des présences et absences des élèves avec suivi mensuel et observations">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: 221 83% 53%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222 47% 11%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215 16% 47%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222 47% 11%;
+            --destructive: 0 84% 60%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214 32% 91%;
+            --input: 214 32% 91%;
+            --ring: 221 83% 53%;
+            --background: 0 0% 100%;
+            --foreground: 222 47% 11%;
+            --card: 0 0% 100%;
+            --card-foreground: 222 47% 11%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(221 83% 63%) 100%);
+            border-radius: 1rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            margin-bottom: 2rem;
+        }
+
+        .tab-list {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            background: hsl(var(--muted));
+            padding: 0.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: hsl(var(--muted-foreground));
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .tab-button:hover {
+            background: hsl(var(--background));
+        }
+
+        .tab-button.active {
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .button-primary {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+
+        .button-primary:hover {
+            opacity: 0.9;
+        }
+
+        .button-destructive {
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .button-secondary {
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+        }
+
+        .button-outline {
+            background: transparent;
+            border: 1px solid hsl(var(--border));
+            color: hsl(var(--foreground));
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: hsl(var(--ring));
+            box-shadow: 0 0 0 3px hsla(var(--ring), 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid hsl(var(--border));
+        }
+
+        th {
+            font-weight: 600;
+            background: hsl(var(--muted));
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: hsl(142 76% 36%);
+            color: white;
+        }
+
+        .badge-destructive {
+            background: hsl(var(--destructive));
+            color: white;
+        }
+
+        .badge-secondary {
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+        }
+
+        .calendar {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            background: hsl(var(--background));
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.5;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: hsl(var(--background));
+            border-radius: 0.75rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: hsl(var(--muted));
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .tab-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .calendar-grid {
+                grid-template-columns: repeat(7, 1fr);
+                gap: 0.125rem;
+            }
+            
+            .calendar-day {
+                font-size: 0.625rem;
+                padding: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Gestion des Présences</h1>
+            <p id="currentDate"></p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab-list">
+                <button class="tab-button active" data-tab="today">👥 Aujourd'hui</button>
+                <button class="tab-button" data-tab="calendar">📅 Calendrier</button>
+                <button class="tab-button" data-tab="report">📊 Bilan</button>
+                <button class="tab-button" data-tab="import">📄 Import/Export</button>
+                <button class="tab-button" data-tab="students">⚙️ Gestion</button>
+            </div>
+
+            <!-- Today Tab -->
+            <div class="tab-content active" id="today">
+                <div class="card">
+                    <h2 class="card-title">Présences du jour</h2>
+                    <table id="todayTable">
+                        <thead>
+                            <tr>
+                                <th>Élève</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="todayTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Calendar Tab -->
+            <div class="tab-content" id="calendar">
+                <div class="card">
+                    <div class="calendar-header">
+                        <button class="button button-outline" onclick="changeMonth(-1)">← Précédent</button>
+                        <h2 id="calendarTitle"></h2>
+                        <button class="button button-outline" onclick="changeMonth(1)">Suivant →</button>
+                    </div>
+                    <div id="calendarContent"></div>
+                </div>
+            </div>
+
+            <!-- Report Tab -->
+            <div class="tab-content" id="report">
+                <div class="card">
+                    <div class="calendar-header">
+                        <button class="button button-outline" onclick="changeReportMonth(-1)">← Précédent</button>
+                        <h2 id="reportTitle"></h2>
+                        <button class="button button-outline" onclick="changeReportMonth(1)">Suivant →</button>
+                    </div>
+                    <div class="stats-grid" id="globalStats"></div>
+                    <button class="button button-primary" onclick="exportReport()">📥 Exporter le bilan</button>
+                    <div style="margin-top: 1rem;">
+                        <table id="reportTable">
+                            <thead>
+                                <tr>
+                                    <th>Élève</th>
+                                    <th>Présences</th>
+                                    <th>Absences</th>
+                                    <th>Taux de présence</th>
+                                    <th>Taux d'absence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import/Export Tab -->
+            <div class="tab-content" id="import">
+                <div class="card">
+                    <h2 class="card-title">Import / Export</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <button class="button button-primary" onclick="document.getElementById('importFile').click()">
+                            📤 Importer des élèves
+                        </button>
+                        <button class="button button-secondary" onclick="exportStudents()">
+                            📥 Exporter les élèves
+                        </button>
+                        <button class="button button-outline" onclick="downloadTemplate()">
+                            📋 Télécharger modèle
+                        </button>
+                    </div>
+                    <input type="file" id="importFile" accept=".xls,.xlsx" style="display: none;" onchange="importStudents(event)">
+                    <div style="background: hsl(var(--muted)); padding: 1rem; border-radius: 0.5rem;">
+                        <p style="font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Format du fichier :</strong></p>
+                        <ul style="font-size: 0.875rem; margin-left: 1.5rem;">
+                            <li>Colonne A : ID (nombre)</li>
+                            <li>Colonne B : Nom (texte)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Tab -->
+            <div class="tab-content" id="students">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h2 class="card-title" style="margin: 0;">Gestion des élèves</h2>
+                        <button class="button button-primary" onclick="openAddModal()">+ Ajouter un élève</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Présences</th>
+                                <th>Absences</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Student Modal -->
+    <div class="modal" id="studentModal">
+        <div class="modal-content">
+            <h2 class="modal-header" id="modalTitle">Ajouter un élève</h2>
+            <div class="form-group">
+                <label class="form-label">Nom de l'élève</label>
+                <input type="text" class="input" id="studentName" placeholder="Entrez le nom">
+            </div>
+            <div class="modal-footer">
+                <button class="button button-outline" onclick="closeModal()">Annuler</button>
+                <button class="button button-primary" onclick="saveStudent()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observation Modal -->
+    <div class="modal" id="observationModal">
+        <div class="modal-content">
+            <h2 class="modal-header">Ajouter une observation</h2>
+            <div class="form-group">
+                <label class="form-label">Observation</label>
+                <textarea class="input" id="observationText" rows="4" placeholder="Entrez votre observation"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="button button-outline" onclick="closeObservationModal()">Annuler</button>
+                <button class="button button-primary" onclick="saveObservation()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        let students = [
+            { id: 1, name: "Ahmed Benali", attendance: [], observations: [] },
+            { id: 2, name: "Fatima Zahra", attendance: [], observations: [] },
+            { id: 3, name: "Mohammed Alami", attendance: [], observations: [] }
+        ];
+
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let reportMonth = new Date().getMonth();
+        let reportYear = new Date().getFullYear();
+        let editingStudentId = null;
+        let currentObservationStudentId = null;
+
+        // Initialize
+        function init() {
+            updateDate();
+            switchTab('today');
+            loadFromLocalStorage();
+            renderAll();
+        }
+
+        function updateDate() {
+            const date = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = date.toLocaleDateString('fr-FR', options);
+        }
+
+        // Local Storage
+        function saveToLocalStorage() {
+            localStorage.setItem('attendanceStudents', JSON.stringify(students));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('attendanceStudents');
+            if (saved) {
+                students = JSON.parse(saved);
+            }
+        }
+
+        // Tab Switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tab = button.dataset.tab;
+                switchTab(tab);
+            });
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'today') renderTodayTable();
+            if (tabName === 'calendar') renderCalendar();
+            if (tabName === 'report') renderReport();
+            if (tabName === 'students') renderStudentsTable();
+        }
+
+        function renderAll() {
+            renderTodayTable();
+            renderCalendar();
+            renderReport();
+            renderStudentsTable();
+        }
+
+        // Today Table
+        function renderTodayTable() {
+            const tbody = document.getElementById('todayTableBody');
+            const today = new Date().toISOString().split('T')[0];
+            
+            tbody.innerHTML = students.map(student => {
+                const todayAttendance = student.attendance.find(a => a.date === today);
+                const isPresent = todayAttendance?.present;
+                
+                return `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td>
+                            ${isPresent === true ? '<span class="badge badge-success">Présent</span>' : 
+                              isPresent === false ? '<span class="badge badge-destructive">Absent</span>' : 
+                              '<span class="badge badge-secondary">Non marqué</span>'}
+                        </td>
+                        <td>
+                            <button class="button button-primary" onclick="markAttendance(${student.id}, true)">✓ Présent</button>
+                            <button class="button button-destructive" onclick="markAttendance(${student.id}, false)">✗ Absent</button>
+                            <button class="button button-outline" onclick="openObservationModal(${student.id})">💬 Observation</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function markAttendance(studentId, present) {
+            const today = new Date().toISOString().split('T')[0];
+            const student = students.find(s => s.id === studentId);
+            
+            const existingIndex = student.attendance.findIndex(a => a.date === today);
+            if (existingIndex >= 0) {
+                student.attendance[existingIndex] = { date: today, present };
+            } else {
+                student.attendance.push({ date: today, present });
+            }
+            
+            saveToLocalStorage();
+            renderAll();
+        }
+
+        // Calendar
+        function renderCalendar() {
+            const title = document.getElementById('calendarTitle');
+            const content = document.getElementById('calendarContent');
+            
+            const monthName = new Date(currentYear, currentMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            title.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+            
+            let html = '<div style="margin-bottom: 1rem;">';
+            
+            students.forEach(student => {
+                html += `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <h3 style="font-weight: 600; margin-bottom: 0.5rem;">${student.name}</h3>
+                        <div class="calendar-grid">
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">L</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">M</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">M</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">J</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">V</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">S</div>
+                            <div style="font-weight: 600; text-align: center; padding: 0.25rem;">D</div>
+                `;
+                
+                for (let i = 0; i < startDayOfWeek; i++) {
+                    html += '<div class="calendar-day other-month"></div>';
+                }
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const attendance = student.attendance.find(a => a.date === date);
+                    const bgColor = attendance?.present === true ? 'hsl(142 76% 36%)' : 
+                                   attendance?.present === false ? 'hsl(var(--destructive))' : 'hsl(var(--background))';
+                    const textColor = attendance ? 'white' : 'hsl(var(--foreground))';
+                    
+                    html += `
+                        <div class="calendar-day" style="background: ${bgColor}; color: ${textColor}; cursor: pointer;" 
+                             onclick="toggleCalendarAttendance(${student.id}, '${date}')">
+                            ${day}
+                        </div>
+                    `;
+                }
+                
+                html += '</div></div>';
+            });
+            
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function toggleCalendarAttendance(studentId, date) {
+            const student = students.find(s => s.id === studentId);
+            const existingIndex = student.attendance.findIndex(a => a.date === date);
+            
+            if (existingIndex >= 0) {
+                const current = student.attendance[existingIndex].present;
+                if (current === true) {
+                    student.attendance[existingIndex].present = false;
+                } else if (current === false) {
+                    student.attendance.splice(existingIndex, 1);
+                } else {
+                    student.attendance[existingIndex].present = true;
+                }
+            } else {
+                student.attendance.push({ date, present: true });
+            }
+            
+            saveToLocalStorage();
+            renderCalendar();
+            renderReport();
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        // Report
+        function renderReport() {
+            const title = document.getElementById('reportTitle');
+            const monthName = new Date(reportYear, reportMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            title.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            
+            const tbody = document.getElementById('reportTableBody');
+            const globalStats = document.getElementById('globalStats');
+            
+            let totalPresent = 0;
+            let totalAbsent = 0;
+            let totalDays = 0;
+            
+            const rows = students.map(student => {
+                const monthAttendance = student.attendance.filter(a => {
+                    const date = new Date(a.date);
+                    return date.getMonth() === reportMonth && date.getFullYear() === reportYear;
+                });
+                
+                const present = monthAttendance.filter(a => a.present).length;
+                const absent = monthAttendance.filter(a => !a.present).length;
+                const total = monthAttendance.length;
+                
+                totalPresent += present;
+                totalAbsent += absent;
+                totalDays += total;
+                
+                const presenceRate = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
+                const absenceRate = total > 0 ? ((absent / total) * 100).toFixed(1) : 0;
+                
+                return `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td>${present}</td>
+                        <td>${absent}</td>
+                        <td><span class="badge badge-success">${presenceRate}%</span></td>
+                        <td><span class="badge ${absent > 0 ? 'badge-destructive' : 'badge-secondary'}">${absenceRate}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = rows;
+            
+            const globalPresenceRate = totalDays > 0 ? ((totalPresent / totalDays) * 100).toFixed(1) : 0;
+            const globalAbsenceRate = totalDays > 0 ? ((totalAbsent / totalDays) * 100).toFixed(1) : 0;
+            
+            globalStats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Jours enregistrés</div>
+                    <div class="stat-value">${totalDays}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total présences</div>
+                    <div class="stat-value" style="color: hsl(142 76% 36%);">${totalPresent}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total absences</div>
+                    <div class="stat-value" style="color: hsl(var(--destructive));">${totalAbsent}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Taux de présence</div>
+                    <div class="stat-value" style="color: hsl(142 76% 36%);">${globalPresenceRate}%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Taux d'absence</div>
+                    <div class="stat-value" style="color: hsl(var(--destructive));">${globalAbsenceRate}%</div>
+                </div>
+            `;
+        }
+
+        function changeReportMonth(delta) {
+            reportMonth += delta;
+            if (reportMonth > 11) {
+                reportMonth = 0;
+                reportYear++;
+            } else if (reportMonth < 0) {
+                reportMonth = 11;
+                reportYear--;
+            }
+            renderReport();
+        }
+
+        function exportReport() {
+            const monthName = new Date(reportYear, reportMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            
+            const data = students.map(student => {
+                const monthAttendance = student.attendance.filter(a => {
+                    const date = new Date(a.date);
+                    return date.getMonth() === reportMonth && date.getFullYear() === reportYear;
+                });
+                
+                const present = monthAttendance.filter(a => a.present).length;
+                const absent = monthAttendance.filter(a => !a.present).length;
+                const total = monthAttendance.length;
+                const presenceRate = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
+                const absenceRate = total > 0 ? ((absent / total) * 100).toFixed(1) : 0;
+                
+                return {
+                    'Élève': student.name,
+                    'Présences': present,
+                    'Absences': absent,
+                    'Taux de présence': presenceRate + '%',
+                    'Taux d\'absence': absenceRate + '%'
+                };
+            });
+            
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Bilan');
+            XLSX.writeFile(wb, `bilan_${monthName.replace(' ', '_')}.xlsx`);
+        }
+
+        // Students Management
+        function renderStudentsTable() {
+            const tbody = document.getElementById('studentsTableBody');
+            
+            tbody.innerHTML = students.map(student => {
+                const present = student.attendance.filter(a => a.present).length;
+                const absent = student.attendance.filter(a => !a.present).length;
+                
+                return `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td>${present}</td>
+                        <td>${absent}</td>
+                        <td>
+                            <button class="button button-secondary" onclick="editStudent(${student.id})">✏️ Modifier</button>
+                            <button class="button button-destructive" onclick="deleteStudent(${student.id})">🗑️ Supprimer</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openAddModal() {
+            editingStudentId = null;
+            document.getElementById('modalTitle').textContent = 'Ajouter un élève';
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentModal').classList.add('active');
+        }
+
+        function editStudent(id) {
+            editingStudentId = id;
+            const student = students.find(s => s.id === id);
+            document.getElementById('modalTitle').textContent = 'Modifier l\'élève';
+            document.getElementById('studentName').value = student.name;
+            document.getElementById('studentModal').classList.add('active');
+        }
+
+        function saveStudent() {
+            const name = document.getElementById('studentName').value.trim();
+            if (!name) {
+                alert('Veuillez entrer un nom');
+                return;
+            }
+            
+            if (editingStudentId) {
+                const student = students.find(s => s.id === editingStudentId);
+                student.name = name;
+            } else {
+                const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+                students.push({ id: newId, name, attendance: [], observations: [] });
+            }
+            
+            saveToLocalStorage();
+            renderAll();
+            closeModal();
+        }
+
+        function deleteStudent(id) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cet élève ?')) {
+                students = students.filter(s => s.id !== id);
+                saveToLocalStorage();
+                renderAll();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('studentModal').classList.remove('active');
+        }
+
+        // Observations
+        function openObservationModal(studentId) {
+            currentObservationStudentId = studentId;
+            document.getElementById('observationText').value = '';
+            document.getElementById('observationModal').classList.add('active');
+        }
+
+        function saveObservation() {
+            const text = document.getElementById('observationText').value.trim();
+            if (!text) {
+                alert('Veuillez entrer une observation');
+                return;
+            }
+            
+            const student = students.find(s => s.id === currentObservationStudentId);
+            student.observations.push(text);
+            
+            saveToLocalStorage();
+            closeObservationModal();
+            alert('Observation ajoutée');
+        }
+
+        function closeObservationModal() {
+            document.getElementById('observationModal').classList.remove('active');
+        }
+
+        // Import/Export
+        function importStudents(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: ['id', 'name'] });
+                
+                students = jsonData.slice(1).map(row => ({
+                    id: Number(row.id) || Date.now() + Math.random(),
+                    name: row.name || 'Sans nom',
+                    attendance: [],
+                    observations: []
+                }));
+                
+                saveToLocalStorage();
+                renderAll();
+                alert(`${students.length} élèves importés avec succès`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function exportStudents() {
+            const data = students.map(s => ({ ID: s.id, Nom: s.name }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Élèves');
+            XLSX.writeFile(wb, 'eleves.xlsx');
+        }
+
+        function downloadTemplate() {
+            const data = [
+                { ID: 1, Nom: 'Exemple Élève 1' },
+                { ID: 2, Nom: 'Exemple Élève 2' }
+            ];
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Élèves');
+            XLSX.writeFile(wb, 'modele_eleves.xlsx');
+        }
+
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
